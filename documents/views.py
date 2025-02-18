@@ -4,7 +4,18 @@ from django.db.models import Q
 from django.http import HttpResponseForbidden
 from django.contrib import messages
 from .models import Document, Category
-from .forms import DocumentForm
+from .forms import DocumentForm, UserRegistrationForm
+
+def register(request):
+    if request.method == 'POST':
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Account created successfully! Please login.')
+            return redirect('login')
+    else:
+        form = UserRegistrationForm()
+    return render(request, 'registration/register.html', {'form': form})
 
 @login_required
 def dashboard(request):
