@@ -24,7 +24,10 @@
                             <a class="nav-link" href="{% url 'upload_document' %}">Upload</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+                            <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link" style="background: none; border: none;">Logout</button>
+                            </form>
                         </li>
                     {% else %}
                         <li class="nav-item">
