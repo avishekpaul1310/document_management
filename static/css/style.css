@@ -1,0 +1,17 @@
+.card {
+    height: 100%;
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.document-list {
+    margin-top: 2rem;
+}
+
+.search-form {
+    margin-bottom: 2rem;
+}

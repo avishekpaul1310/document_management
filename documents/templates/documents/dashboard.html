@@ -1,0 +1,62 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <form class="d-flex" method="get">
+            <input class="form-control me-2" type="search" placeholder="Search documents..." 
+                   name="q" value="{{ query }}">
+            <select class="form-select me-2" name="category">
+                <option value="">All Categories</option>
+                {% for category in categories %}
+                    <option value="{{ category.name }}" 
+                            {% if category.name == selected_category %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-outline-primary" type="submit">Search</button>
+        </form>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'upload_document' %}" class="btn btn-primary">Upload Document</a>
+    </div>
+</div>
+
+<div class="row">
+    {% for document in documents %}
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ document.title }}</h5>
+                    <p class="card-text">{{ document.description|truncatewords:20 }}</p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            Category: {{ document.category.name }}<br>
+                            File type: {{ document.file.name|split:'.'|last|upper }}<br>
+                            Uploaded: {{ document.uploaded_at|date:"M d, Y" }}<br>
+                            By: {{ document.owner.username }}
+                        </small>
+                    </p>
+                    <div class="btn-group">
+                        <a href="{% url 'document_detail' document.pk %}" class="btn btn-primary btn-sm">View</a>
+                        {% if document.owner == request.user %}
+                            <a href="{% url 'delete_document' document.pk %}" class="btn btn-danger btn-sm">Delete</a>
+                        {% endif %}
+                    </div>
+                    {% if document.owner == request.user %}
+                        <span class="badge bg-info">Owner</span>
+                    {% endif %}
+                    {% if document.is_private %}
+                        <span class="badge bg-warning">Private</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col-12">
+            <p class="text-center">No documents found.</p>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}
