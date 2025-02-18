@@ -1,5 +1,11 @@
+/* General Styles */
+body {
+    background-color: #f8f9fa;
+}
+
+/* Card Styles */
 .card {
-    height: 100%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     transition: transform 0.2s;
 }
 
@@ -8,10 +14,39 @@
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
+/* Dashboard Styles */
+.search-form {
+    margin-bottom: 2rem;
+}
+
 .document-list {
     margin-top: 2rem;
 }
 
-.search-form {
-    margin-bottom: 2rem;
+/* Form Styles */
+.form-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Badge Styles */
+.badge {
+    margin-left: 0.5rem;
+}
+
+/* Button Styles */
+.btn-group {
+    margin-top: 1rem;
+}
+
+/* Document Details */
+.document-details {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
