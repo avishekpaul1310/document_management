@@ -7,6 +7,9 @@ class DocumentForm(forms.ModelForm):
     class Meta:
         model = Document
         fields = ['title', 'description', 'file', 'category', 'is_private']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 4}),
+        }
 
 class UserRegistrationForm(UserCreationForm):
     email = forms.EmailField(required=True)
