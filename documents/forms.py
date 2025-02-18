@@ -8,7 +8,11 @@ class DocumentForm(forms.ModelForm):
         model = Document
         fields = ['title', 'description', 'file', 'category', 'is_private']
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 4}),
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'category': forms.Select(attrs={'class': 'form-control'}),
+            'file': forms.FileInput(attrs={'class': 'form-control'}),
+            'is_private': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
 class UserRegistrationForm(UserCreationForm):

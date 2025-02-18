@@ -14,13 +14,18 @@ class DocumentAdmin(admin.ModelAdmin):
     list_filter = ('category', 'is_private', 'uploaded_at')
     search_fields = ('title', 'description')
     date_hierarchy = 'uploaded_at'
-    readonly_fields = ('owner', 'uploaded_at')
     actions = ('make_private', 'make_public')
 
     def save_model(self, request, obj, form, change):
         if not obj.pk:  # Only set owner when creating new document
             obj.owner = request.user
         super().save_model(request, obj, form, change)
+
+    def get_readonly_fields(self, request, obj=None):
+        # Make fields readonly only for non-superusers
+        if not request.user.is_superuser:
+            return ('owner', 'uploaded_at')
+        return ()
 
     def document_link(self, obj):
         return format_html('<a href="{}">{}</a>', 

@@ -59,7 +59,11 @@ def upload_document(request):
     else:
         form = DocumentForm()
     
-    return render(request, 'documents/document_upload.html', {'form': form})
+    context = {
+        'form': form,
+        'title': 'Upload Document'  # Add this for the template
+    }
+    return render(request, 'documents/document_upload.html', context)
 
 @login_required
 def document_detail(request, pk):
