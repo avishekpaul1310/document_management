@@ -17,7 +17,11 @@
         <div class="mt-3">
             <a href="{{ document.file.url }}" class="btn btn-primary" target="_blank">Download</a>
             {% if document.owner == request.user %}
-                <a href="{% url 'delete_document' document.pk %}" class="btn btn-danger">Delete</a>
+            <a href="{% url 'delete_document' document.pk %}" class="btn btn-danger">Delete</a>
+            {% endif %}
+            {% if document.owner == request.user %}
+            <a href="{% url 'edit_document' document.pk %}" class="btn btn-warning">Edit</a>
+            <a href="{% url 'delete_document' document.pk %}" class="btn btn-danger">Delete</a>
             {% endif %}
             <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
         </div>

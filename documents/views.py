@@ -86,3 +86,22 @@ def delete_document(request, pk):
         return redirect('dashboard')
     
     return render(request, 'documents/document_delete.html', {'document': document})
+
+@login_required
+def edit_document(request, pk):
+    document = get_object_or_404(Document, pk=pk)
+    
+    # Only allow the owner to edit the document
+    if document.owner != request.user:
+        return HttpResponseForbidden()
+    
+    if request.method == 'POST':
+        form = DocumentForm(request.POST, request.FILES, instance=document)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Document updated successfully!')
+            return redirect('document_detail', pk=document.pk)
+    else:
+        form = DocumentForm(instance=document)
+    
+    return render(request, 'documents/document_edit.html', {'form': form, 'document': document})
