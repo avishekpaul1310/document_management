@@ -7,4 +7,8 @@ urlpatterns = [
     path('document/<int:pk>/', views.document_detail, name='document_detail'),
     path('document/<int:pk>/delete/', views.delete_document, name='delete_document'),
     path('document/<int:pk>/edit/', views.edit_document, name='edit_document'),
+    path('categories/', views.category_list, name='category_list'),
+    path('categories/add/', views.add_category, name='add_category'),
+    path('categories/<int:pk>/edit/', views.edit_category, name='edit_category'),
+    path('categories/<int:pk>/delete/', views.delete_category, name='delete_category'),
 ]
