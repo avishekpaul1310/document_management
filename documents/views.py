@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpResponseForbidden
 from django.contrib import messages
-from .models import Document, Category
+from .models import Document, Category, DocumentVersion, UserProfile
 from .forms import DocumentForm, UserRegistrationForm
 
 def register(request):
@@ -86,6 +86,13 @@ def has_permission(user, action, obj=None):
     Check if user has permission to perform action.
     Actions: 'view', 'create', 'edit', 'delete', 'manage_categories', 'manage_users'
     """
+    if not hasattr(user, 'profile'):
+        if action in ['view', 'create']:
+            return True
+        if action in ['edit', 'delete'] and obj and obj.owner == user:
+            return True
+        return False
+    
     role = user.profile.role
     
     # Admins can do everything
