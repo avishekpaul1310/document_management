@@ -43,7 +43,13 @@ def dashboard(request):
     if category:
         documents = documents.filter(category__name=category)
     
+    # Get all categories
     categories = Category.objects.all()
+    
+    # Get only categories that have active documents
+    active_categories_count = Category.objects.filter(
+        document__is_archived=False
+    ).distinct().count()
     
     # Analytics data - Document statistics (excluding archived documents)
     total_documents = Document.objects.filter(is_archived=False).count()
@@ -140,6 +146,7 @@ def dashboard(request):
         'analytics': {
             'total_documents': total_documents,
             'user_documents': user_documents,
+            'active_categories_count': active_categories_count,  # Add this
             'category_stats': category_data,
             'category_stats_json': json.dumps(category_data),
             'file_types': file_types,
