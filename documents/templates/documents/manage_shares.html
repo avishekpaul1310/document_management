@@ -1,0 +1,75 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h4>Manage Share Links</h4>
+    </div>
+    <div class="card-body">
+        <h5 class="card-title">{{ document.title }}</h5>
+        
+        {% if shares %}
+            <div class="table-responsive mt-4">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Created</th>
+                            <th>Expires</th>
+                            <th>Status</th>
+                            <th>Views</th>
+                            <th>Downloads</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for share in shares %}
+                        <tr class="{% if not share.is_active or share.is_expired %}table-secondary text-muted{% endif %}">
+                            <td>{{ share.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                {% if share.expire_at %}
+                                    {{ share.expire_at|date:"M d, Y" }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not share.is_active %}
+                                    <span class="badge bg-danger">Deactivated</span>
+                                {% elif share.is_expired %}
+                                    <span class="badge bg-warning text-dark">Expired</span>
+                                {% else %}
+                                    <span class="badge bg-success">Active</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ share.view_count }}</td>
+                            <td>{{ share.download_count }}</td>
+                            <td>
+                                {% if share.is_active and not share.is_expired %}
+                                    <a href="{% url 'shared_document' share.token %}" class="btn btn-sm btn-primary" target="_blank">View</a>
+                                    <form method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="share_id" value="{{ share.id }}">
+                                        <button type="submit" name="delete_share" class="btn btn-sm btn-danger">Deactivate</button>
+                                    </form>
+                                {% else %}
+                                    <span class="text-muted">No actions available</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info mt-3">
+                No share links found for this document.
+            </div>
+        {% endif %}
+        
+        <div class="mt-4">
+            <a href="{% url 'share_document' document.pk %}" class="btn btn-primary">Create New Share Link</a>
+            <a href="{% url 'document_detail' document.pk %}" class="btn btn-outline-secondary">Back to Document</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

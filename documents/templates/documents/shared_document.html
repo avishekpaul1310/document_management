@@ -1,0 +1,75 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h4>Shared Document</h4>
+    </div>
+    <div class="card-body">
+        <h3 class="card-title">{{ document.title }}</h3>
+        <p class="card-text">{{ document.description }}</p>
+        
+        <div class="alert alert-light">
+            <small class="text-muted">
+                Category: {{ document.category.name }}<br>
+                Uploaded: {{ document.uploaded_at|date:"M d, Y" }}<br>
+                By: {{ document.owner.username }}<br>
+                Shared On: {{ share.created_at|date:"M d, Y" }}
+                {% if share.expire_at %}<br>Share Link Expires: {{ share.expire_at|date:"M d, Y, g:i a" }}{% endif %}
+            </small>
+        </div>
+        
+        <div class="mt-3">
+            <a href="{% url 'download_shared_document' share.token %}" class="btn btn-primary">Download Document</a>
+            <a href="/" class="btn btn-secondary">Go to Home</a>
+        </div>
+    </div>
+</div>
+
+<!-- Comments section -->
+<div class="card" id="comments">
+    <div class="card-header bg-light">
+        <h4>Comments</h4>
+    </div>
+    <div class="card-body">
+        {% if user.is_authenticated %}
+            <!-- Add new comment -->
+            <form method="post" action="{% url 'add_comment' document.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="token" value="{{ share.token }}">
+                <div class="mb-3">
+                    <textarea class="form-control" name="comment" rows="3" placeholder="Add a comment..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary mb-4">Post Comment</button>
+            </form>
+        {% else %}
+            <div class="alert alert-info mb-4">
+                Please <a href="{% url 'login' %}">log in</a> to post comments.
+            </div>
+        {% endif %}
+        
+        <!-- List of comments -->
+        <div class="comments-list">
+            {% for comment in comments %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="card-subtitle mb-2 text-muted">{{ comment.user.username }}</h6>
+                            <small class="text-muted">{{ comment.created_at|date:"M d, Y, g:i a" }}</small>
+                        </div>
+                        <p class="card-text">{{ comment.text }}</p>
+                        {% if user.is_authenticated and comment.user == user %}
+                            <form method="post" action="{% url 'delete_comment' document.pk comment.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger float-end">Delete</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            {% empty %}
+                <p class="text-muted">No comments yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

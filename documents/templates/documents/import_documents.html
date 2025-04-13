@@ -1,0 +1,71 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h4>Import Documents</h4>
+    </div>
+    <div class="card-body">
+        <p class="lead">Upload multiple documents at once and assign them to a category.</p>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label for="files" class="form-label">Select Files</label>
+                <input type="file" class="form-control" id="files" name="files" multiple required>
+                <div class="form-text">You can select multiple files at once. Allowed file types: PDF, Word, Excel, and Images.</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="">Uncategorized</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="is_private" name="is_private">
+                <label class="form-check-label" for="is_private">Private documents (only you can access)</label>
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-upload"></i> Import Documents
+                </button>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show selected file count
+    const filesInput = document.getElementById('files');
+    if(filesInput) {
+        filesInput.addEventListener('change', function() {
+            const fileCount = this.files.length;
+            const fileText = fileCount > 0 ? 
+                `${fileCount} file${fileCount === 1 ? '' : 's'} selected` : 
+                'No files selected';
+            
+            // Create or update help text
+            let helpText = this.nextElementSibling;
+            if(!helpText || !helpText.classList.contains('selected-files')) {
+                helpText = document.createElement('div');
+                helpText.className = 'form-text mt-2 selected-files';
+                this.parentNode.appendChild(helpText);
+            }
+            
+            helpText.textContent = fileText;
+        });
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

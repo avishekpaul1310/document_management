@@ -1,7 +1,7 @@
 {% extends 'documents/base.html' %}
 
 {% block content %}
-<div class="card">
+<div class="card mb-4">
     <div class="card-body">
         <h3 class="card-title">{{ document.title }}</h3>
         <p class="card-text">{{ document.description }}</p>
@@ -21,6 +21,8 @@
             {% if document.owner == request.user %}
                 {% if not document.is_archived %}
                     <a href="{% url 'edit_document' document.pk %}" class="btn btn-warning">Edit</a>
+                    <a href="{% url 'share_document' document.pk %}" class="btn btn-info">Share</a>
+                    <a href="{% url 'manage_shares' document.pk %}" class="btn btn-outline-info">Manage Shares</a>
                     <a href="{% url 'archive_document' document.pk %}" class="btn btn-secondary">Archive</a>
                 {% else %}
                     <a href="{% url 'restore_document' document.pk %}" class="btn btn-info">Restore</a>
@@ -35,4 +37,46 @@
         </div>
     </div>
 </div>
+
+{% if not document.is_archived %}
+<!-- Comments section -->
+<div class="card" id="comments">
+    <div class="card-header bg-light">
+        <h4>Comments</h4>
+    </div>
+    <div class="card-body">
+        <!-- Add new comment -->
+        <form method="post" action="{% url 'add_comment' document.pk %}">
+            {% csrf_token %}
+            <div class="mb-3">
+                <textarea class="form-control" name="comment" rows="3" placeholder="Add a comment..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary mb-4">Post Comment</button>
+        </form>
+        
+        <!-- List of comments -->
+        <div class="comments-list">
+            {% for comment in document.comments.all %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="card-subtitle mb-2 text-muted">{{ comment.user.username }}</h6>
+                            <small class="text-muted">{{ comment.created_at|date:"M d, Y, g:i a" }}</small>
+                        </div>
+                        <p class="card-text">{{ comment.text }}</p>
+                        {% if comment.user == request.user or document.owner == request.user %}
+                            <form method="post" action="{% url 'delete_comment' document.pk comment.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger float-end">Delete</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            {% empty %}
+                <p class="text-muted">No comments yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

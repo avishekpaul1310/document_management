@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 import os
+import uuid
+from datetime import datetime, timedelta
 
 def validate_file_type(value):
     # Get the file extension
@@ -67,6 +69,67 @@ class DocumentVersion(models.Model):
     
     def __str__(self):
         return f"{self.document.title} - v{self.version_number}"
+
+class DocumentShare(models.Model):
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='shares')
+    shared_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='shared_documents')
+    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expire_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    view_count = models.PositiveIntegerField(default=0)
+    download_count = models.PositiveIntegerField(default=0)
+    
+    def __str__(self):
+        return f"Share: {self.document.title} by {self.shared_by.username}"
+    
+    def is_expired(self):
+        if not self.expire_at:
+            return False
+        return datetime.now().astimezone() > self.expire_at
+    
+    @classmethod
+    def get_valid_share(cls, token):
+        try:
+            share = cls.objects.get(token=token, is_active=True)
+            if not share.is_expired():
+                return share
+        except (cls.DoesNotExist, ValueError):
+            pass
+        return None
+
+class Comment(models.Model):
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Comment by {self.user.username} on {self.document.title}"
+
+class Notification(models.Model):
+    NOTIFICATION_TYPES = (
+        ('upload', 'Document Upload'),
+        ('update', 'Document Update'),
+        ('share', 'Document Share'),
+        ('comment', 'Document Comment'),
+    )
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Notification for {self.user.username}: {self.notification_type}"
 
 class UserProfile(models.Model):
     USER_ROLES = (

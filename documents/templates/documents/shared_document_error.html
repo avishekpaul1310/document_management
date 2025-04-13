@@ -1,0 +1,24 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-danger text-white">
+        <h4>Share Link Error</h4>
+    </div>
+    <div class="card-body text-center">
+        <div class="mb-4">
+            <i class="bi bi-exclamation-triangle-fill" style="font-size: 3rem; color: #dc3545;"></i>
+        </div>
+        <h5 class="card-title">Link Invalid or Expired</h5>
+        <p class="card-text mb-4">{{ error }}</p>
+        <p class="mb-4">The document you're trying to access is not available with this link. This could be because:</p>
+        <ul class="list-group list-group-flush mb-4">
+            <li class="list-group-item">The share link has expired</li>
+            <li class="list-group-item">The link has been deactivated by the document owner</li>
+            <li class="list-group-item">The document has been archived or deleted</li>
+            <li class="list-group-item">The URL might be incorrect</li>
+        </ul>
+        <a href="/" class="btn btn-primary">Go to Home</a>
+    </div>
+</div>
+{% endblock %}

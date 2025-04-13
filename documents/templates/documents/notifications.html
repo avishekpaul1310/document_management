@@ -1,0 +1,65 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h4>Notifications</h4>
+        {% if unread_count > 0 %}
+            <span class="badge bg-danger">{{ unread_count }} Unread</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if notifications %}
+            <div class="mb-3 d-flex justify-content-between">
+                <h5>You have {{ notifications.count }} notification{{ notifications.count|pluralize }}</h5>
+                <form method="post" action="{% url 'mark_all_notifications_read' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-primary btn-sm">Mark All as Read</button>
+                </form>
+            </div>
+            
+            <div class="list-group">
+                {% for notification in notifications %}
+                    <div class="list-group-item list-group-item-action 
+                        {% if not notification.is_read %}list-group-item-primary{% endif %}">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">
+                                {% if notification.notification_type == 'upload' %}
+                                    <i class="bi bi-file-earmark-plus"></i>
+                                {% elif notification.notification_type == 'update' %}
+                                    <i class="bi bi-file-earmark-arrow-up"></i>
+                                {% elif notification.notification_type == 'share' %}
+                                    <i class="bi bi-share"></i>
+                                {% elif notification.notification_type == 'comment' %}
+                                    <i class="bi bi-chat-text"></i>
+                                {% endif %}
+                                {{ notification.get_notification_type_display }}
+                            </h5>
+                            <small>{{ notification.created_at|date:"M d, Y, g:i a" }}</small>
+                        </div>
+                        <p class="mb-1">{{ notification.message }}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            {% if notification.document %}
+                                <a href="{% url 'document_detail' notification.document.pk %}" class="btn btn-sm btn-primary">View Document</a>
+                            {% endif %}
+                            
+                            {% if not notification.is_read %}
+                                <form method="post" action="{% url 'mark_notification_read' notification.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Mark as Read</button>
+                                </form>
+                            {% else %}
+                                <span class="badge bg-light text-dark">Read</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <p class="mb-0">You have no notifications.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

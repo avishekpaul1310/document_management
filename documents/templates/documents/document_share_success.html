@@ -1,0 +1,56 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h4>Share Link Generated Successfully</h4>
+    </div>
+    <div class="card-body">
+        <h5 class="card-title">{{ document.title }}</h5>
+        <p>Your document is now available via the link below:</p>
+        
+        <div class="input-group mb-4">
+            <input type="text" class="form-control" value="{{ share_url }}" id="share-url" readonly>
+            <button class="btn btn-outline-primary" type="button" onclick="copyShareUrl()">Copy Link</button>
+        </div>
+        
+        <div class="mb-4">
+            <h6>Share Link Details:</h6>
+            <ul class="list-group">
+                <li class="list-group-item">Created: {{ share.created_at|date:"F d, Y, g:i a" }}</li>
+                <li class="list-group-item">Expires: {% if share.expire_at %}{{ share.expire_at|date:"F d, Y, g:i a" }}{% else %}Never{% endif %}</li>
+            </ul>
+        </div>
+        
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle-fill"></i>
+            Anyone with this link can view this document{% if not share.expire_at %} indefinitely{% endif %}.
+            You can manage your share links from the <a href="{% url 'manage_shares' document.pk %}">Manage Shares</a> page.
+        </div>
+        
+        <div class="d-flex mt-4">
+            <a href="{% url 'document_detail' document.pk %}" class="btn btn-outline-secondary me-2">Back to Document</a>
+            <a href="{% url 'share_document' document.pk %}" class="btn btn-outline-primary">Create Another Share Link</a>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+function copyShareUrl() {
+    var copyText = document.getElementById("share-url");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); // For mobile devices
+    navigator.clipboard.writeText(copyText.value);
+    
+    // Show feedback
+    var button = event.currentTarget;
+    var originalText = button.innerHTML;
+    button.innerHTML = "Copied!";
+    setTimeout(function() {
+        button.innerHTML = originalText;
+    }, 2000);
+}
+</script>
+{% endblock %}
+{% endblock %}

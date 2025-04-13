@@ -1,0 +1,62 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h4>Share Document</h4>
+    </div>
+    <div class="card-body">
+        <h5>{{ document.title }}</h5>
+        <p class="text-muted mb-4">Create a shareable link to give access to this document to anyone with the link.</p>
+        
+        <form method="post" class="mb-5">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="expiry_days" class="form-label">Link Expiration (Optional)</label>
+                <select class="form-select" id="expiry_days" name="expiry_days">
+                    <option value="">Never expires</option>
+                    <option value="1">1 day</option>
+                    <option value="7">7 days</option>
+                    <option value="30">30 days</option>
+                    <option value="90">90 days</option>
+                </select>
+                <small class="text-muted">Choose when this share link will expire. If left blank, the link will never expire.</small>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Generate Share Link</button>
+            <a href="{% url 'document_detail' document.pk %}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+        
+        {% if active_shares %}
+        <h5>Active Share Links</h5>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Created</th>
+                        <th>Expires</th>
+                        <th>Views</th>
+                        <th>Downloads</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for share in active_shares %}
+                    <tr>
+                        <td>{{ share.created_at|date:"M d, Y" }}</td>
+                        <td>{% if share.expire_at %}{{ share.expire_at|date:"M d, Y" }}{% else %}Never{% endif %}</td>
+                        <td>{{ share.view_count }}</td>
+                        <td>{{ share.download_count }}</td>
+                        <td>
+                            <a href="{% url 'shared_document' share.token %}" class="btn btn-sm btn-primary" target="_blank">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <a href="{% url 'manage_shares' document.pk %}" class="btn btn-outline-info">Manage All Share Links</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

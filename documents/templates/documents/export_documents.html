@@ -1,0 +1,108 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h4>Export Documents</h4>
+    </div>
+    <div class="card-body">
+        <p class="lead">Select the documents you want to export as a ZIP file.</p>
+        
+        <form method="post" id="export-form">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="select-all">
+                    <label class="form-check-label" for="select-all">
+                        <strong>Select All</strong>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Document</th>
+                            <th>Category</th>
+                            <th>Size</th>
+                            <th>Uploaded</th>
+                            <th>Owner</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doc in documents %}
+                            <tr>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input document-checkbox" type="checkbox" 
+                                               name="document_ids" value="{{ doc.id }}" id="doc-{{ doc.id }}">
+                                    </div>
+                                </td>
+                                <td>{{ doc.title }}</td>
+                                <td>{{ doc.category.name }}</td>
+                                <td>{{ doc.file.size|filesizeformat }}</td>
+                                <td>{{ doc.uploaded_at|date:"M d, Y" }}</td>
+                                <td>{{ doc.owner.username }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center">No documents available for export.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary" id="export-button" disabled>
+                    <i class="bi bi-file-earmark-zip"></i> Export Selected
+                </button>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const documentCheckboxes = document.querySelectorAll('.document-checkbox');
+    const exportButton = document.getElementById('export-button');
+    
+    // Function to update export button status
+    function updateExportButtonStatus() {
+        const checkedCount = document.querySelectorAll('.document-checkbox:checked').length;
+        exportButton.disabled = checkedCount === 0;
+    }
+    
+    // Handle "Select All" checkbox
+    if(selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            documentCheckboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            updateExportButtonStatus();
+        });
+    }
+    
+    // Handle individual checkboxes
+    documentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const allChecked = document.querySelectorAll('.document-checkbox:checked').length === documentCheckboxes.length;
+            if(selectAllCheckbox) {
+                selectAllCheckbox.checked = allChecked;
+            }
+            updateExportButtonStatus();
+        });
+    });
+    
+    // Initial button status
+    updateExportButtonStatus();
+});
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,14 +1,20 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Count, Sum, F
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models.functions import TruncDay
-from datetime import timedelta
+from django.urls import reverse
+from datetime import timedelta, datetime
 import os
 import json
-from .models import Document, Category, DocumentVersion, UserProfile
+import zipfile
+import io
+from .models import (
+    Document, Category, DocumentVersion, UserProfile, 
+    DocumentShare, Comment, Notification
+)
 from .forms import DocumentForm, UserRegistrationForm
 
 def register(request):
@@ -396,3 +402,333 @@ def restore_document(request, pk):
         return redirect('archived_documents')
     
     return render(request, 'documents/document_restore.html', {'document': document})
+
+# Document Sharing views
+@login_required
+def share_document(request, pk):
+    document = get_object_or_404(Document, pk=pk)
+    
+    # Only allow the owner to share the document
+    if document.owner != request.user:
+        return HttpResponseForbidden()
+    
+    if request.method == 'POST':
+        # Get expiry date if set
+        expiry_days = request.POST.get('expiry_days')
+        expiry_date = None
+        
+        if expiry_days and expiry_days.isdigit():
+            expiry_days = int(expiry_days)
+            if expiry_days > 0:
+                expiry_date = timezone.now() + timedelta(days=expiry_days)
+        
+        # Create share link
+        share = DocumentShare.objects.create(
+            document=document,
+            shared_by=request.user,
+            expire_at=expiry_date
+        )
+        
+        # Create notification for document owner
+        Notification.objects.create(
+            user=request.user,
+            document=document,
+            notification_type='share',
+            message=f"You shared '{document.title}' with a link."
+        )
+        
+        # Generate share URL to display to user
+        share_url = request.build_absolute_uri(reverse('shared_document', args=[share.token]))
+        return render(request, 'documents/document_share_success.html', {
+            'document': document,
+            'share': share,
+            'share_url': share_url
+        })
+    
+    # Get all active shares for this document
+    active_shares = DocumentShare.objects.filter(
+        document=document,
+        shared_by=request.user,
+        is_active=True
+    )
+    
+    return render(request, 'documents/document_share.html', {
+        'document': document,
+        'active_shares': active_shares
+    })
+
+@login_required
+def manage_shares(request, pk):
+    document = get_object_or_404(Document, pk=pk)
+    
+    # Only allow the owner to manage shares
+    if document.owner != request.user:
+        return HttpResponseForbidden()
+    
+    shares = DocumentShare.objects.filter(document=document, shared_by=request.user)
+    
+    if request.method == 'POST' and 'delete_share' in request.POST:
+        share_id = request.POST.get('share_id')
+        if share_id:
+            try:
+                share = DocumentShare.objects.get(id=share_id, document=document, shared_by=request.user)
+                share.is_active = False
+                share.save()
+                messages.success(request, 'Share link has been deactivated.')
+            except DocumentShare.DoesNotExist:
+                messages.error(request, 'Share link not found.')
+    
+    return render(request, 'documents/manage_shares.html', {
+        'document': document,
+        'shares': shares
+    })
+
+def shared_document(request, token):
+    share = DocumentShare.get_valid_share(token)
+    
+    if not share:
+        return render(request, 'documents/shared_document_error.html', {
+            'error': 'This share link is invalid or has expired.'
+        })
+    
+    document = share.document
+    
+    # Don't allow viewing archived documents through share links
+    if document.is_archived:
+        return render(request, 'documents/shared_document_error.html', {
+            'error': 'This document has been archived and is no longer available.'
+        })
+    
+    # Track view count
+    share.view_count += 1
+    share.save()
+    
+    # Get comments
+    comments = Comment.objects.filter(document=document)
+    
+    return render(request, 'documents/shared_document.html', {
+        'document': document,
+        'share': share,
+        'comments': comments
+    })
+
+def download_shared_document(request, token):
+    share = DocumentShare.get_valid_share(token)
+    
+    if not share or share.document.is_archived:
+        return render(request, 'documents/shared_document_error.html', {
+            'error': 'This share link is invalid or has expired.'
+        })
+    
+    document = share.document
+    
+    # Track download count
+    share.download_count += 1
+    share.save()
+    
+    response = HttpResponse(document.file, content_type='application/octet-stream')
+    response['Content-Disposition'] = f'attachment; filename="{document.file.name.split("/")[-1]}"'
+    return response
+
+# Comment views
+@login_required
+def add_comment(request, pk):
+    document = get_object_or_404(Document, pk=pk)
+    
+    # Check if user can access this document
+    if document.is_private and document.owner != request.user:
+        # Check if this is a shared document via token
+        token = request.POST.get('token')
+        if not token or not DocumentShare.get_valid_share(token):
+            return HttpResponseForbidden()
+    
+    if request.method == 'POST':
+        comment_text = request.POST.get('comment')
+        if comment_text:
+            comment = Comment.objects.create(
+                document=document,
+                user=request.user,
+                text=comment_text
+            )
+            
+            # Create notification for document owner if commenter is not owner
+            if document.owner != request.user:
+                Notification.objects.create(
+                    user=document.owner,
+                    document=document,
+                    notification_type='comment',
+                    message=f"{request.user.username} commented on your document '{document.title}'."
+                )
+            
+            # If this is an AJAX request, return the comment as JSON
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'id': comment.id,
+                    'text': comment.text,
+                    'user': comment.user.username,
+                    'created_at': comment.created_at.strftime('%b %d, %Y, %I:%M %p')
+                })
+            
+            messages.success(request, 'Comment added successfully!')
+            
+            # Redirect back to document with token if it exists
+            token = request.POST.get('token')
+            if token:
+                return redirect(f'{reverse("shared_document", args=[token])}#comments')
+            return redirect(f'{reverse("document_detail", args=[pk])}#comments')
+    
+    messages.error(request, 'Failed to add comment.')
+    return redirect('document_detail', pk=pk)
+
+@login_required
+def delete_comment(request, document_pk, comment_pk):
+    document = get_object_or_404(Document, pk=document_pk)
+    comment = get_object_or_404(Comment, pk=comment_pk, document=document)
+    
+    # Only allow comment owner or document owner to delete the comment
+    if comment.user != request.user and document.owner != request.user:
+        return HttpResponseForbidden()
+    
+    if request.method == 'POST':
+        comment.delete()
+        messages.success(request, 'Comment deleted successfully!')
+    
+    return redirect(f'{reverse("document_detail", args=[document_pk])}#comments')
+
+# Notification views
+@login_required
+def notifications(request):
+    notifications = Notification.objects.filter(user=request.user)
+    unread_count = notifications.filter(is_read=False).count()
+    
+    return render(request, 'documents/notifications.html', {
+        'notifications': notifications,
+        'unread_count': unread_count,
+    })
+
+@login_required
+def mark_notification_read(request, pk):
+    notification = get_object_or_404(Notification, pk=pk, user=request.user)
+    notification.is_read = True
+    notification.save()
+    
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success'})
+    
+    return redirect('notifications')
+
+@login_required
+def mark_all_notifications_read(request):
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success'})
+    
+    return redirect('notifications')
+
+# Bulk Export/Import views
+@login_required
+def export_documents(request):
+    if request.method == 'POST':
+        document_ids = request.POST.getlist('document_ids')
+        
+        if not document_ids:
+            messages.error(request, 'No documents selected for export.')
+            return redirect('dashboard')
+        
+        # Create in-memory ZIP file
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for doc_id in document_ids:
+                try:
+                    document = Document.objects.get(pk=doc_id)
+                    
+                    # Check permissions
+                    if document.owner != request.user and document.is_private:
+                        continue
+                    
+                    # Add file to zip
+                    file_name = document.file.name.split('/')[-1]
+                    zipf.writestr(file_name, document.file.read())
+                except Document.DoesNotExist:
+                    continue
+        
+        # Prepare response
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="exported_documents_{timezone.now().strftime("%Y%m%d")}.zip"'
+        return response
+    
+    # Get documents user can access
+    documents = Document.objects.filter(
+        Q(owner=request.user) | Q(is_private=False)
+    ).filter(is_archived=False)
+    
+    return render(request, 'documents/export_documents.html', {
+        'documents': documents
+    })
+
+@login_required
+def import_documents(request):
+    if request.method == 'POST':
+        files = request.FILES.getlist('files')
+        category_id = request.POST.get('category')
+        is_private = request.POST.get('is_private') == 'on'
+        
+        if not files:
+            messages.error(request, 'No files selected for import.')
+            return redirect('import_documents')
+        
+        try:
+            category = Category.objects.get(pk=category_id) if category_id else None
+        except Category.DoesNotExist:
+            category = None
+        
+        success_count = 0
+        error_count = 0
+        
+        for file in files:
+            try:
+                # Create document
+                document = Document.objects.create(
+                    title=os.path.splitext(file.name)[0],  # Use filename as title
+                    description='Imported document',
+                    file=file,
+                    category=category,
+                    owner=request.user,
+                    is_private=is_private
+                )
+                
+                # Create initial version
+                DocumentVersion.objects.create(
+                    document=document,
+                    file=file,
+                    version_number=1,
+                    created_by=request.user,
+                    comment="Initial version (imported)"
+                )
+                
+                # Create notification
+                Notification.objects.create(
+                    user=request.user,
+                    document=document,
+                    notification_type='upload',
+                    message=f"You uploaded a new document: '{document.title}'"
+                )
+                
+                success_count += 1
+                
+            except Exception as e:
+                error_count += 1
+        
+        if success_count > 0:
+            messages.success(request, f'Successfully imported {success_count} document(s).')
+        if error_count > 0:
+            messages.error(request, f'Failed to import {error_count} file(s). Please check the file types.')
+        
+        return redirect('dashboard')
+    
+    categories = Category.objects.all()
+    return render(request, 'documents/import_documents.html', {
+        'categories': categories
+    })
