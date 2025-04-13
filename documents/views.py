@@ -29,9 +29,10 @@ def dashboard(request):
     query = request.GET.get('q', '')
     category = request.GET.get('category', '')
     
+    # Filter out archived documents from the main dashboard
     documents = Document.objects.filter(
         Q(owner=request.user) | Q(is_private=False)
-    )
+    ).filter(is_archived=False)
     
     if query:
         documents = documents.filter(
@@ -321,3 +322,69 @@ def delete_category(request, pk):
         messages.success(request, 'Category deleted successfully!')
         return redirect('category_list')
     return render(request, 'documents/category_delete.html', {'category': category})
+
+# Archive-related view functions
+@login_required
+def archive_document(request, pk):
+    document = get_object_or_404(Document, pk=pk)
+    
+    # Only allow the owner to archive the document
+    if document.owner != request.user:
+        return HttpResponseForbidden()
+    
+    if request.method == 'POST':
+        document.is_archived = True
+        document.archived_at = timezone.now()
+        document.save()
+        messages.success(request, 'Document archived successfully!')
+        return redirect('dashboard')
+    
+    return render(request, 'documents/document_archive.html', {'document': document})
+
+@login_required
+def archived_documents(request):
+    if not has_permission(request.user, 'view'):
+        return HttpResponseForbidden("You don't have permission to view documents.")
+    
+    # Get archived documents that the user can access
+    documents = Document.objects.filter(
+        Q(owner=request.user) | Q(is_private=False)
+    ).filter(is_archived=True)
+    
+    query = request.GET.get('q', '')
+    category = request.GET.get('category', '')
+    
+    if query:
+        documents = documents.filter(
+            Q(title__icontains=query) |
+            Q(description__icontains=query)
+        )
+    
+    if category:
+        documents = documents.filter(category__name=category)
+    
+    categories = Category.objects.all()
+    
+    return render(request, 'documents/archived_documents.html', {
+        'documents': documents,
+        'categories': categories,
+        'query': query,
+        'selected_category': category
+    })
+
+@login_required
+def restore_document(request, pk):
+    document = get_object_or_404(Document, pk=pk)
+    
+    # Only allow the owner to restore the document
+    if document.owner != request.user:
+        return HttpResponseForbidden()
+    
+    if request.method == 'POST':
+        document.is_archived = False
+        document.archived_at = None
+        document.save()
+        messages.success(request, 'Document restored successfully!')
+        return redirect('archived_documents')
+    
+    return render(request, 'documents/document_restore.html', {'document': document})

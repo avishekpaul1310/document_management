@@ -33,7 +33,9 @@ class Document(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
     is_private = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False)
     current_version = models.PositiveIntegerField(default=1)
+    archived_at = models.DateTimeField(null=True, blank=True)
     
     def __str__(self):
         return self.title

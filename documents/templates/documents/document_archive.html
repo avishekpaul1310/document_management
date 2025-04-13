@@ -1,0 +1,16 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <h3 class="card-title text-secondary">Archive Document</h3>
+        <p>Are you sure you want to archive "{{ document.title }}"?</p>
+        <p class="text-muted">Archiving will remove this document from the main dashboard, but it will still be accessible in the Archives section.</p>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary">Archive</button>
+            <a href="{% url 'document_detail' document.pk %}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

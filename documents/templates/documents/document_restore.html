@@ -1,0 +1,16 @@
+{% extends 'documents/base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <h3 class="card-title text-info">Restore Document</h3>
+        <p>Are you sure you want to restore "{{ document.title }}" from the archives?</p>
+        <p class="text-muted">Restoring will make this document visible again in the main dashboard.</p>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-info">Restore</button>
+            <a href="{% url 'document_detail' document.pk %}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

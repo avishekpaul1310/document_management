@@ -182,6 +182,7 @@
                                 <div class="btn-group">
                                     <a href="{% url 'document_detail' document.pk %}" class="btn btn-primary">View</a>
                                     {% if document.owner == request.user %}
+                                        <a href="{% url 'archive_document' document.pk %}" class="btn btn-secondary">Archive</a>
                                         <a href="{% url 'delete_document' document.pk %}" class="btn btn-danger">Delete</a>
                                     {% endif %}
                                 </div>
