@@ -211,7 +211,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Category distribution chart using JSON-encoded data
+    // Category distribution chart
     const categoryData = JSON.parse('{{ analytics.category_stats_json|escapejs }}');
     
     const categoryLabels = categoryData.map(item => item.label);
@@ -245,8 +245,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Activity chart (last 7 days)
-    const activityLabels = JSON.parse('{{ analytics.activity_labels|escapejs }}');
-    const activityData = JSON.parse('{{ analytics.activity_data|escapejs }}');
+    const activityLabels = JSON.parse('{{ analytics.activity_labels_json|escapejs }}');
+    const activityData = JSON.parse('{{ analytics.activity_data_json|escapejs }}');
     
     new Chart(document.getElementById('activityChart'), {
         type: 'line',

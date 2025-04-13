@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.db.models.functions import TruncDay
 from datetime import timedelta
 import os
+import json
 from .models import Document, Category, DocumentVersion, UserProfile
 from .forms import DocumentForm, UserRegistrationForm
 
@@ -51,6 +52,14 @@ def dashboard(request):
     category_stats = Document.objects.values('category__name').annotate(
         count=Count('id')
     ).order_by('-count')
+    
+    # Format category data for JSON
+    category_data = []
+    for cat in category_stats:
+        category_data.append({
+            'label': cat['category__name'] or 'Uncategorized',
+            'count': cat['count']
+        })
     
     # Recent activity - last 7 days of uploads
     last_week = timezone.now() - timedelta(days=7)
@@ -129,11 +138,16 @@ def dashboard(request):
         'analytics': {
             'total_documents': total_documents,
             'user_documents': user_documents,
-            'category_stats': list(category_stats),
+            'category_stats': category_data,
+            'category_stats_json': json.dumps(category_data),
             'file_types': file_types,
+            'file_types_json': json.dumps(file_types),
             'storage_usage': storage_usage,
+            'storage_usage_json': json.dumps(storage_usage['by_category']),
             'activity_labels': activity_labels,
             'activity_data': activity_data,
+            'activity_labels_json': json.dumps(activity_labels),
+            'activity_data_json': json.dumps(activity_data),
             'recent_uploads': recent_uploads
         }
     })
