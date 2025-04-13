@@ -1,8 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Q, Count, Sum, F
 from django.http import HttpResponseForbidden
 from django.contrib import messages
+from django.utils import timezone
+from django.db.models.functions import TruncDay
+from datetime import timedelta
+import os
 from .models import Document, Category, DocumentVersion, UserProfile
 from .forms import DocumentForm, UserRegistrationForm
 
@@ -39,11 +43,99 @@ def dashboard(request):
     
     categories = Category.objects.all()
     
+    # Analytics data - Document statistics
+    total_documents = Document.objects.count()
+    user_documents = Document.objects.filter(owner=request.user).count()
+    
+    # Category distribution for pie chart
+    category_stats = Document.objects.values('category__name').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Recent activity - last 7 days of uploads
+    last_week = timezone.now() - timedelta(days=7)
+    daily_uploads = Document.objects.filter(
+        uploaded_at__gte=last_week
+    ).annotate(
+        day=TruncDay('uploaded_at')
+    ).values('day').annotate(
+        count=Count('id')
+    ).order_by('day')
+    
+    # Format for the chart
+    activity_labels = []
+    activity_data = []
+    
+    # Create a complete date range for the last 7 days
+    current_date = last_week
+    end_date = timezone.now()
+    
+    while current_date.date() <= end_date.date():
+        day_str = current_date.strftime('%Y-%m-%d')
+        activity_labels.append(current_date.strftime('%d %b'))
+        
+        # Find if there are uploads for this day
+        day_data = next((item for item in daily_uploads if item['day'].strftime('%Y-%m-%d') == day_str), None)
+        activity_data.append(day_data['count'] if day_data else 0)
+        
+        current_date += timedelta(days=1)
+    
+    # File type distribution
+    file_types = {}
+    for doc in Document.objects.all():
+        ext = os.path.splitext(doc.file.name)[1].lower()
+        if ext:
+            file_types[ext] = file_types.get(ext, 0) + 1
+    
+    # Storage usage calculation
+    storage_usage = {
+        'user': 0,
+        'total': 0,
+        'by_category': {}
+    }
+    
+    for doc in Document.objects.all():
+        try:
+            size = doc.file.size
+            storage_usage['total'] += size
+            if doc.owner == request.user:
+                storage_usage['user'] += size
+                
+            # Also track by category
+            cat_name = doc.category.name if doc.category else 'Uncategorized'
+            if cat_name not in storage_usage['by_category']:
+                storage_usage['by_category'][cat_name] = 0
+            storage_usage['by_category'][cat_name] += size
+        except:
+            # File might not exist
+            pass
+    
+    # Convert bytes to MB
+    for key in ['user', 'total']:
+        storage_usage[key] = round(storage_usage[key] / (1024 * 1024), 2)
+    
+    for category in storage_usage['by_category']:
+        storage_usage['by_category'][category] = round(storage_usage['by_category'][category] / (1024 * 1024), 2)
+    
+    # Get recent uploads - last 5 docs
+    recent_uploads = Document.objects.order_by('-uploaded_at')[:5]
+    
     return render(request, 'documents/dashboard.html', {
         'documents': documents,
         'categories': categories,
         'query': query,
-        'selected_category': category
+        'selected_category': category,
+        # Analytics data
+        'analytics': {
+            'total_documents': total_documents,
+            'user_documents': user_documents,
+            'category_stats': list(category_stats),
+            'file_types': file_types,
+            'storage_usage': storage_usage,
+            'activity_labels': activity_labels,
+            'activity_data': activity_data,
+            'recent_uploads': recent_uploads
+        }
     })
 
 @login_required

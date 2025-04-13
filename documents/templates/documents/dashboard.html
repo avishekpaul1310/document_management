@@ -2,66 +2,355 @@
 {% load document_filters %}
 
 {% block content %}
+<!-- Analytics Dashboard Section -->
 <div class="row mb-4">
-    <div class="col-md-8">
-        <form class="d-flex" method="get">
-            <input class="form-control me-2" type="search" placeholder="Search documents..." 
-                   name="q" value="{{ query }}">
-            <select class="form-select me-2" name="category">
-                <option value="">All Categories</option>
-                {% for category in categories %}
-                    <option value="{{ category.name }}" 
-                            {% if category.name == selected_category %}selected{% endif %}>
-                        {{ category.name }}
-                    </option>
-                {% endfor %}
-            </select>
-            <button class="btn btn-outline-primary" type="submit">Search</button>
-        </form>
-    </div>
-    <div class="col-md-4 text-end">
-        <a href="{% url 'upload_document' %}" class="btn btn-primary">Upload Document</a>
-    </div>
-</div>
-
-<div class="row">
-    {% for document in documents %}
-        <div class="col-md-4 mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">{{ document.title }}</h5>
-                    <p class="card-text">{{ document.description|truncatewords:20 }}</p>
-                    <p class="card-text">
-                        <small class="text-muted">
-                            <strong>Category:</strong> {{ document.category.name }}<br>
-                            <strong>File type:</strong> {{ document.file.name|get_file_extension }}<br>
-                            <strong>Uploaded:</strong> {{ document.uploaded_at|date:"M d, Y" }}<br>
-                            <strong>By:</strong> {{ document.owner.username }}
-                        </small>
-                    </p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="btn-group">
-                            <a href="{% url 'document_detail' document.pk %}" class="btn btn-primary">View</a>
-                            {% if document.owner == request.user %}
-                                <a href="{% url 'delete_document' document.pk %}" class="btn btn-danger">Delete</a>
-                            {% endif %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-4">Document Analytics Dashboard</h4>
+                
+                <!-- Quick Stats Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3 mb-3">
+                        <div class="card bg-primary text-white h-100">
+                            <div class="card-body py-3">
+                                <h5 class="card-title">Total Documents</h5>
+                                <h2 class="display-6">{{ analytics.total_documents }}</h2>
+                            </div>
                         </div>
-                        <div>
-                            {% if document.owner == request.user %}
-                                <span class="btn btn-info disabled">Owner</span>
-                            {% endif %}
-                            {% if document.is_private %}
-                                <span class="btn btn-warning disabled">Private</span>
-                            {% endif %}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card bg-success text-white h-100">
+                            <div class="card-body py-3">
+                                <h5 class="card-title">Your Documents</h5>
+                                <h2 class="display-6">{{ analytics.user_documents }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card bg-info text-white h-100">
+                            <div class="card-body py-3">
+                                <h5 class="card-title">Categories</h5>
+                                <h2 class="display-6">{{ categories|length }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card bg-warning text-dark h-100">
+                            <div class="card-body py-3">
+                                <h5 class="card-title">Storage Used</h5>
+                                <h2 class="display-6">{{ analytics.storage_usage.total }} MB</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Charts -->
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Category Distribution</h5>
+                                <div class="chart-container" style="position: relative; height:250px;">
+                                    <canvas id="categoryChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Upload Activity (Last 7 Days)</h5>
+                                <div class="chart-container" style="position: relative; height:250px;">
+                                    <canvas id="activityChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Storage Usage by Category</h5>
+                                <div class="chart-container" style="position: relative; height:250px;">
+                                    <canvas id="storageChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">File Type Distribution</h5>
+                                <div class="chart-container" style="position: relative; height:250px;">
+                                    <canvas id="fileTypeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Recent Uploads</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Document</th>
+                                                <th>Category</th>
+                                                <th>Owner</th>
+                                                <th>Uploaded</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for doc in analytics.recent_uploads %}
+                                                <tr>
+                                                    <td>{{ doc.title }}</td>
+                                                    <td>{{ doc.category.name }}</td>
+                                                    <td>{{ doc.owner.username }}</td>
+                                                    <td>{{ doc.uploaded_at|date:"M d, Y" }}</td>
+                                                    <td>
+                                                        <a href="{% url 'document_detail' doc.pk %}" class="btn btn-sm btn-primary">View</a>
+                                                    </td>
+                                                </tr>
+                                            {% empty %}
+                                                <tr>
+                                                    <td colspan="5" class="text-center">No recent uploads</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    {% empty %}
-        <div class="col-12">
-            <p class="text-center">No documents found.</p>
-        </div>
-    {% endfor %}
+    </div>
 </div>
+
+<!-- Search and Document List Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <form class="d-flex" method="get">
+                    <input class="form-control me-2" type="search" placeholder="Search documents..." 
+                        name="q" value="{{ query }}">
+                    <select class="form-select me-2" name="category">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                            <option value="{{ category.name }}" 
+                                    {% if category.name == selected_category %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-outline-primary" type="submit">Search</button>
+                </form>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{% url 'upload_document' %}" class="btn btn-primary">Upload Document</a>
+            </div>
+        </div>
+        
+        <h4 class="mb-4">Your Document Library</h4>
+        <div class="row">
+            {% for document in documents %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ document.title }}</h5>
+                            <p class="card-text">{{ document.description|truncatewords:20 }}</p>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    <strong>Category:</strong> {{ document.category.name }}<br>
+                                    <strong>File type:</strong> {{ document.file.name|get_file_extension }}<br>
+                                    <strong>Uploaded:</strong> {{ document.uploaded_at|date:"M d, Y" }}<br>
+                                    <strong>By:</strong> {{ document.owner.username }}
+                                </small>
+                            </p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="btn-group">
+                                    <a href="{% url 'document_detail' document.pk %}" class="btn btn-primary">View</a>
+                                    {% if document.owner == request.user %}
+                                        <a href="{% url 'delete_document' document.pk %}" class="btn btn-danger">Delete</a>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    {% if document.owner == request.user %}
+                                        <span class="btn btn-info disabled">Owner</span>
+                                    {% endif %}
+                                    {% if document.is_private %}
+                                        <span class="btn btn-warning disabled">Private</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="col-12">
+                    <p class="text-center">No documents found.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Category distribution chart using JSON-encoded data
+    const categoryData = JSON.parse('{{ analytics.category_stats_json|escapejs }}');
+    
+    const categoryLabels = categoryData.map(item => item.label);
+    const categoryValues = categoryData.map(item => item.count);
+    
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'pie',
+        data: {
+            labels: categoryLabels,
+            datasets: [{
+                data: categoryValues,
+                backgroundColor: [
+                    '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+                    '#6610f2', '#6f42c1', '#fd7e14', '#20c9a6', '#5a5c69'
+                ],
+                hoverBackgroundColor: [
+                    '#2e59d9', '#17a673', '#2c9faf', '#dda20a', '#be2617',
+                    '#4e0ca5', '#4f2d8e', '#c96112', '#169a80', '#3a3b45'
+                ],
+                hoverBorderColor: "rgba(234, 236, 244, 1)",
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+    
+    // Activity chart (last 7 days)
+    const activityLabels = JSON.parse('{{ analytics.activity_labels|escapejs }}');
+    const activityData = JSON.parse('{{ analytics.activity_data|escapejs }}');
+    
+    new Chart(document.getElementById('activityChart'), {
+        type: 'line',
+        data: {
+            labels: activityLabels,
+            datasets: [{
+                label: 'Document Uploads',
+                data: activityData,
+                lineTension: 0.3,
+                backgroundColor: "rgba(78, 115, 223, 0.05)",
+                borderColor: "rgba(78, 115, 223, 1)",
+                pointRadius: 3,
+                pointBackgroundColor: "rgba(78, 115, 223, 1)",
+                pointBorderColor: "rgba(78, 115, 223, 1)",
+                pointHoverRadius: 3,
+                pointHoverBackgroundColor: "rgba(78, 115, 223, 1)",
+                pointHoverBorderColor: "rgba(78, 115, 223, 1)",
+                pointHitRadius: 10,
+                pointBorderWidth: 2,
+                fill: true
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    
+    // Storage usage by category chart
+    const storageData = JSON.parse('{{ analytics.storage_usage_json|escapejs }}');
+    
+    const storageLabels = Object.keys(storageData);
+    const storageValues = Object.values(storageData);
+    
+    new Chart(document.getElementById('storageChart'), {
+        type: 'bar',
+        data: {
+            labels: storageLabels,
+            datasets: [{
+                label: 'Storage (MB)',
+                data: storageValues,
+                backgroundColor: 'rgba(54, 185, 204, 0.5)',
+                borderColor: 'rgba(54, 185, 204, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Size (MB)'
+                    }
+                }
+            }
+        }
+    });
+    
+    // File type distribution chart
+    const fileTypeData = JSON.parse('{{ analytics.file_types_json|escapejs }}');
+    
+    const fileTypeLabels = Object.keys(fileTypeData);
+    const fileTypeValues = Object.values(fileTypeData);
+    
+    new Chart(document.getElementById('fileTypeChart'), {
+        type: 'doughnut',
+        data: {
+            labels: fileTypeLabels,
+            datasets: [{
+                data: fileTypeValues,
+                backgroundColor: [
+                    '#e74a3b', '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e',
+                    '#6610f2', '#6f42c1', '#fd7e14', '#20c9a6', '#5a5c69'
+                ],
+                hoverBackgroundColor: [
+                    '#be2617', '#2e59d9', '#17a673', '#2c9faf', '#dda20a',
+                    '#4e0ca5', '#4f2d8e', '#c96112', '#169a80', '#3a3b45'
+                ],
+                hoverBorderColor: "rgba(234, 236, 244, 1)",
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
