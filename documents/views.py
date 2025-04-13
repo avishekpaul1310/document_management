@@ -45,12 +45,12 @@ def dashboard(request):
     
     categories = Category.objects.all()
     
-    # Analytics data - Document statistics
-    total_documents = Document.objects.count()
-    user_documents = Document.objects.filter(owner=request.user).count()
+    # Analytics data - Document statistics (excluding archived documents)
+    total_documents = Document.objects.filter(is_archived=False).count()
+    user_documents = Document.objects.filter(owner=request.user, is_archived=False).count()
     
-    # Category distribution for pie chart
-    category_stats = Document.objects.values('category__name').annotate(
+    # Category distribution for pie chart (excluding archived documents)
+    category_stats = Document.objects.filter(is_archived=False).values('category__name').annotate(
         count=Count('id')
     ).order_by('-count')
     
@@ -62,10 +62,11 @@ def dashboard(request):
             'count': cat['count']
         })
     
-    # Recent activity - last 7 days of uploads
+    # Recent activity - last 7 days of uploads (excluding archived documents)
     last_week = timezone.now() - timedelta(days=7)
     daily_uploads = Document.objects.filter(
-        uploaded_at__gte=last_week
+        uploaded_at__gte=last_week,
+        is_archived=False
     ).annotate(
         day=TruncDay('uploaded_at')
     ).values('day').annotate(
@@ -90,21 +91,21 @@ def dashboard(request):
         
         current_date += timedelta(days=1)
     
-    # File type distribution
+    # File type distribution (excluding archived documents)
     file_types = {}
-    for doc in Document.objects.all():
+    for doc in Document.objects.filter(is_archived=False):
         ext = os.path.splitext(doc.file.name)[1].lower()
         if ext:
             file_types[ext] = file_types.get(ext, 0) + 1
     
-    # Storage usage calculation
+    # Storage usage calculation (excluding archived documents)
     storage_usage = {
         'user': 0,
         'total': 0,
         'by_category': {}
     }
     
-    for doc in Document.objects.all():
+    for doc in Document.objects.filter(is_archived=False):
         try:
             size = doc.file.size
             storage_usage['total'] += size
@@ -127,8 +128,8 @@ def dashboard(request):
     for category in storage_usage['by_category']:
         storage_usage['by_category'][category] = round(storage_usage['by_category'][category] / (1024 * 1024), 2)
     
-    # Get recent uploads - last 5 docs
-    recent_uploads = Document.objects.order_by('-uploaded_at')[:5]
+    # Get recent uploads - last 5 non-archived docs
+    recent_uploads = Document.objects.filter(is_archived=False).order_by('-uploaded_at')[:5]
     
     return render(request, 'documents/dashboard.html', {
         'documents': documents,
